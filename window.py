@@ -55,21 +55,15 @@ class Window(object):
             self.game_msgs.append((line, color))
 
     def loop(self):
-        turn = 0
         key = libtcod.Key()
         mouse = libtcod.Mouse()
         while not self.game_over:
             libtcod.sys_check_for_event(libtcod.EVENT_ANY, key, mouse)
-            (x, y) = (mouse.cx - BG_OFFSET_X, mouse.cy - BG_OFFSET_Y)
             if key.vk == libtcod.KEY_ESCAPE:
                 return None
-            if mouse.lbutton_pressed:
-                self.bg.move(x, y)
-            self.bg.show_current_move()
-            self.bg.hover_mouse(x, y)
+            (x, y) = (mouse.cx - BG_OFFSET_X, mouse.cy - BG_OFFSET_Y)
+            self.bg.update(x, y, mouse)
             self.render_all(x, y)
-
-        return winner
 
     def render_all(self, x, y):
         self.bg.draw(self.con_bg)
@@ -124,6 +118,7 @@ class Window(object):
 
 
 if __name__ == "__main__":
+    libtcod.sys_set_fps(5)
     bg = Battleground(BG_WIDTH, BG_HEIGHT)
     worker = Entity(bg, 10, 15, '@')
     window = Window(bg)

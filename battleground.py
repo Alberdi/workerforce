@@ -1,5 +1,4 @@
 import libtcodpy as libtcod
-import os
 
 
 class Battleground(object):
@@ -11,7 +10,8 @@ class Battleground(object):
         self.tiles = {}
         self.default_tiles()
         self.current_move = set()
-        self.mouse_hovered = None
+        self.mouse_hovered = []
+        self.pending_animations = None
 
     def add_worker(self, worker):
         self.workers.append(worker)
@@ -32,30 +32,54 @@ class Battleground(object):
             self.tiles[pos].draw(con)
 
     def hover_mouse(self, x, y):
-        if self.mouse_hovered and self.mouse_hovered not in self.current_move:
-            self.mouse_hovered.unhover()
-        self.mouse_hovered = self.tiles.get((x, y))
-        if self.mouse_hovered:
-            if self.mouse_hovered in self.current_move:
-                color = libtcod.green
-            else:
-                color = libtcod.red
-            self.mouse_hovered.hover(color)
+        if len(self.mouse_hovered) > 0 and \
+                        self.mouse_hovered[-1] not in self.current_move:
+            [t.unhover() for t in self.mouse_hovered]
+        hovered_tile = self.tiles.get((x, y))
+        if not hovered_tile:
+            self.mouse_hovered = []
+            return
+        if hovered_tile in self.current_move:
+            self.mouse_hovered = self.workers[0].movement_path(x, y)
+            color = libtcod.green
+        else:
+            self.mouse_hovered = [hovered_tile]
+            color = libtcod.red
+        [t.hover(color) for t in self.mouse_hovered]
 
     def is_inside(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
 
+    def move(self, x, y):
+        t = self.tiles.get((x, y))
+        if t in self.current_move:
+            def move_animations():
+                if len(self.mouse_hovered) == 0:
+                    return False
+                next_tile = self.mouse_hovered.pop(0)
+                self.workers[0].move(next_tile.x, next_tile.y)
+                return True
+            self.pending_animations = move_animations
+
     def show_current_move(self):
-        [t.unhover() for t in self.current_move]
         if self.workers.count == 0:
             return
         self.current_move = self.workers[0].movement_reachable_tiles()
         [t.hover(libtcod.blue) for t in self.current_move]
 
-    def move(self, x, y):
-        t = self.tiles.get((x, y))
-        if t in self.current_move:
-            self.workers[0].move(x, y)
+    def update(self, x, y, mouse):
+        self.unhover_all()
+        if self.pending_animations and self.pending_animations():
+            return
+        self.pending_animations = None
+        self.show_current_move()
+        self.hover_mouse(x, y)
+        if mouse.lbutton_pressed:
+            self.move(x, y)
+
+    def unhover_all(self):
+        [t.unhover() for t in self.current_move]
+        [t.unhover() for t in self.mouse_hovered]
 
 
 class Tile(object):

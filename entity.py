@@ -31,3 +31,18 @@ class Entity(object):
                 if tile and tile.passable:
                     tiles.add(tile)
         return self.movement_reachable_tiles(tiles, remaining_speed-1)
+
+    def movement_path(self, x, y):
+        def path_cost(from_x, from_y, to_x, to_y, userdata):
+            tile = self.bg.tiles.get((to_x, to_y))
+            return 1.0 if tile and tile.passable else 0.0
+        path = libtcod.path_new_using_function(self.bg.width, self.bg.height,
+                                               path_cost, 0, 0.0)
+        libtcod.path_compute(path, self.x, self.y, x, y)
+        if libtcod.path_size(path) > self.speed:
+            return []
+        tiles = []
+        while not libtcod.path_is_empty(path):
+            x, y = libtcod.path_walk(path, False)
+            tiles.append(self.bg.tiles[(x, y)])
+        return tiles
