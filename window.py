@@ -62,7 +62,7 @@ class Window(object):
             if key.vk == libtcod.KEY_ESCAPE:
                 return None
             (x, y) = (mouse.cx - BG_OFFSET_X, mouse.cy - BG_OFFSET_Y)
-            self.bg.update(x, y, mouse)
+            self.bg.update(x, y, key, mouse)
             self.render_all(x, y)
 
     def render_all(self, x, y):
@@ -118,8 +118,9 @@ class Window(object):
 
 
 if __name__ == "__main__":
-    libtcod.sys_set_fps(5)
     bg = Battleground(BG_WIDTH, BG_HEIGHT)
     worker = Entity(bg, 10, 15, '@')
+    worker = Entity(bg, 20, 15, '@')
+    worker = Entity(bg, 30, 15, '@')
     window = Window(bg)
     window.loop()

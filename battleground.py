@@ -61,21 +61,40 @@ class Battleground(object):
                 return True
             self.pending_animations = move_animations
 
+    def process_action(self, x, y, key, mouse):
+        if mouse.lbutton_pressed:
+            self.select_worker(x, y)
+        elif mouse.rbutton_pressed:
+            self.move(x, y)
+        elif key.vk == libtcod.KEY_TAB and key.pressed:
+            # Select next worker
+            self.workers.append(self.workers.pop(0))
+        elif key.vk == libtcod.KEY_SHIFT and key.pressed:
+            # Select previous worker
+            self.workers.insert(0, self.workers.pop())
+
+    def select_worker(self, x, y):
+        t = self.tiles[(x, y)]
+        if t and t.entity:
+            for i in range(len(self.workers)):
+                if t.entity == self.workers[0]:
+                    return
+                self.workers.append(self.workers.pop(0))
+
     def show_current_move(self):
         if self.workers.count == 0:
             return
         self.current_move = self.workers[0].movement_reachable_tiles()
         [t.hover(libtcod.blue) for t in self.current_move]
 
-    def update(self, x, y, mouse):
+    def update(self, x, y, key, mouse):
         self.unhover_all()
+        self.process_action(x, y, key, mouse)
         if self.pending_animations and self.pending_animations():
             return
         self.pending_animations = None
         self.show_current_move()
         self.hover_mouse(x, y)
-        if mouse.lbutton_pressed:
-            self.move(x, y)
 
     def unhover_all(self):
         [t.unhover() for t in self.current_move]
@@ -107,6 +126,9 @@ class Tile(object):
             drawable = self
         libtcod.console_put_char_ex(con, self.x, self.y, drawable.char,
                                     drawable.color, self.bg_color)
+
+    def is_passable(self):
+        return self.passable and self.entity is None
 
     def hover(self, color=libtcod.blue):
         self.bg_color = color
