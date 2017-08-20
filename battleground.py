@@ -1,3 +1,4 @@
+from entity import Effect
 import libtcodpy as libtcod
 
 
@@ -9,9 +10,12 @@ class Battleground(object):
         self.workers = []
         self.tiles = {}
         self.default_tiles()
-        self.current_move = set()
+        self.actionable_tiles = set()
         self.mouse_hovered = []
         self.pending_animations = None
+
+    def add_effect(self, effect):
+        self.tiles[(effect.x, effect.y)].effects.append(effect)
 
     def add_worker(self, worker):
         self.workers.append(worker)
@@ -40,8 +44,11 @@ class Battleground(object):
         if not hovered_tile:
             self.mouse_hovered = []
             return
-        if hovered_tile in self.current_move:
-            self.mouse_hovered = self.workers[0].movement_path(x, y)
+        if hovered_tile in self.actionable_tiles:
+            if not self.workers[0].did_move:
+                self.mouse_hovered = self.workers[0].path_movement(x, y)
+            else:
+                self.mouse_hovered = self.workers[0].path_shoot(x, y)
             color = libtcod.green
         else:
             self.mouse_hovered = [hovered_tile]
@@ -52,11 +59,13 @@ class Battleground(object):
         return 0 <= x < self.width and 0 <= y < self.height
 
     def move(self, x, y):
+        if (x, y) == (self.workers[0].x, self.workers[0].y):
+            self.workers[0].move(x, y)
+            return
         t = self.tiles.get((x, y))
-        if t in self.current_move:
+        if t in self.actionable_tiles:
             def move_animations():
                 if len(self.mouse_hovered) == 0:
-                    self.select_active_worker_or_end_turn()
                     return False
                 next_tile = self.mouse_hovered.pop(0)
                 self.workers[0].move(next_tile.x, next_tile.y)
@@ -67,7 +76,10 @@ class Battleground(object):
         if mouse.lbutton_pressed:
             self.select_worker(x, y)
         elif mouse.rbutton_pressed:
-            self.move(x, y)
+            if not self.workers[0].did_move:
+                self.move(x, y)
+            else:
+                self.shoot(x, y)
         elif key.vk == libtcod.KEY_TAB and key.pressed:
             self.select_active_worker()
         elif key.vk == libtcod.KEY_SHIFT and key.pressed:
@@ -96,11 +108,31 @@ class Battleground(object):
                     return
                 self.workers.append(self.workers.pop(0))
 
-    def show_current_move(self):
-        if self.workers.count == 0:
-            return
-        self.current_move = self.workers[0].movement_reachable_tiles()
-        [t.hover(libtcod.blue) for t in self.current_move]
+    def shoot(self, x, y):
+        t = self.tiles.get((x, y))
+        if t in self.actionable_tiles:
+            effect = Effect(self, self.workers[0].x, self.workers[0].y, '*')
+            self.add_effect(effect)
+
+            def shoot_animations():
+                if len(self.mouse_hovered) == 0:
+                    effect.remove()
+                    self.workers[0].shoot(x, y)
+                    self.select_active_worker_or_end_turn()
+                    return False
+                next_tile = self.mouse_hovered.pop(0)
+                effect.move(next_tile.x, next_tile.y)
+                return True
+            self.pending_animations = shoot_animations
+
+    def show_current_options(self):
+        w = self.workers[0]
+        if not w.did_move:
+            self.actionable_tiles = w.reachable_movement_tiles()
+            [t.hover(libtcod.blue) for t in self.actionable_tiles]
+        elif not w.did_act:
+            self.actionable_tiles = w.reachable_shoot_tiles()
+            [t.hover(libtcod.orange) for t in self.actionable_tiles]
 
     def update(self, x, y, key, mouse):
         self.unhover_all()
@@ -108,11 +140,12 @@ class Battleground(object):
         if self.pending_animations and self.pending_animations():
             return
         self.pending_animations = None
-        self.show_current_move()
+        if len(self.workers) > 0:
+            self.show_current_options()
         self.hover_mouse(x, y)
 
     def unhover_all(self):
-        [t.unhover() for t in self.current_move]
+        [t.unhover() for t in self.actionable_tiles]
         [t.unhover() for t in self.mouse_hovered]
 
 
