@@ -31,10 +31,11 @@ class Battleground(object):
         for pos in self.tiles:
             self.tiles[pos].draw(con)
 
+    def end_turn(self):
+        [w.end_turn() for w in self.workers]
+        self.select_active_worker()
+
     def hover_mouse(self, x, y):
-        if len(self.mouse_hovered) > 0 and \
-                        self.mouse_hovered[-1] not in self.current_move:
-            [t.unhover() for t in self.mouse_hovered]
         hovered_tile = self.tiles.get((x, y))
         if not hovered_tile:
             self.mouse_hovered = []
@@ -55,6 +56,7 @@ class Battleground(object):
         if t in self.current_move:
             def move_animations():
                 if len(self.mouse_hovered) == 0:
+                    self.select_active_worker_or_end_turn()
                     return False
                 next_tile = self.mouse_hovered.pop(0)
                 self.workers[0].move(next_tile.x, next_tile.y)
@@ -67,17 +69,30 @@ class Battleground(object):
         elif mouse.rbutton_pressed:
             self.move(x, y)
         elif key.vk == libtcod.KEY_TAB and key.pressed:
-            # Select next worker
-            self.workers.append(self.workers.pop(0))
+            self.select_active_worker()
         elif key.vk == libtcod.KEY_SHIFT and key.pressed:
             # Select previous worker
-            self.workers.insert(0, self.workers.pop())
+            self.select_active_worker(True)
+
+    def select_active_worker(self, previous=False):
+        for i in range(len(self.workers)):
+            if previous:
+                self.workers.insert(0, self.workers.pop())
+            else:
+                self.workers.append(self.workers.pop(0))
+            if not self.workers[0].did_act:
+                return self.workers[0]
+        return None
+
+    def select_active_worker_or_end_turn(self):
+        if not self.select_active_worker():
+            self.end_turn()
 
     def select_worker(self, x, y):
         t = self.tiles[(x, y)]
         if t and t.entity:
             for i in range(len(self.workers)):
-                if t.entity == self.workers[0]:
+                if t.entity == self.workers[0] and not self.workers[0].did_act:
                     return
                 self.workers.append(self.workers.pop(0))
 

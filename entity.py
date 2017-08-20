@@ -11,11 +11,16 @@ class Entity(object):
         self.y = y
         self.speed = 5
         battleground.add_worker(self)
+        self.did_act = False
+
+    def end_turn(self):
+        self.did_act = False
 
     def move(self, x, y):
         self.bg.tiles[(self.x, self.y)].entity = None
         (self.x, self.y) = (x, y)
         self.bg.tiles[(x, y)].entity = self
+        self.did_act = True
 
     def movement_reachable_tiles(self, tiles=None, remaining_speed=None):
         if remaining_speed == 0:
