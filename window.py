@@ -118,6 +118,7 @@ class Window(object):
 
 
 if __name__ == "__main__":
+    libtcod.sys_set_fps(30)
     bg = Battleground(BG_WIDTH, BG_HEIGHT)
     worker = Entity(bg, 10, 15, '@')
     bg.add_worker(worker)

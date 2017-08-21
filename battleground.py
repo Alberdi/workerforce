@@ -69,6 +69,7 @@ class Battleground(object):
                     return False
                 next_tile = self.mouse_hovered.pop(0)
                 self.workers[0].move(next_tile.x, next_tile.y)
+                libtcod.sys_sleep_milli(200)
                 return True
             self.pending_animations = move_animations
 
@@ -122,6 +123,7 @@ class Battleground(object):
                     return False
                 next_tile = self.mouse_hovered.pop(0)
                 effect.move(next_tile.x, next_tile.y)
+                libtcod.sys_sleep_milli(50)
                 return True
             self.pending_animations = shoot_animations
 
@@ -136,10 +138,10 @@ class Battleground(object):
 
     def update(self, x, y, key, mouse):
         self.unhover_all()
-        self.process_action(x, y, key, mouse)
         if self.pending_animations and self.pending_animations():
             return
         self.pending_animations = None
+        self.process_action(x, y, key, mouse)
         if len(self.workers) > 0:
             self.show_current_options()
         self.hover_mouse(x, y)
@@ -155,17 +157,35 @@ class Tile(object):
         self.passable = passable
         self.char = char
         self.color = libtcod.Color(50, 50, 150)
-        self.bg_original_color = libtcod.black
         self.bg_color = libtcod.black
-        self.entity = None
+        self.bg_original_color = self.bg_color
+        self._entity = None
         self.effects = []
         self.x = x
         self.y = y
+        self.should_draw = True
 
-    def get_char(self, x, y):
-        return self.char
+    @property
+    def entity(self):
+        return self._entity
+
+    @entity.setter
+    def entity(self, entity):
+        self._entity = entity
+        self.should_draw = True
+
+    def append_effect(self, effect):
+        self.effects.append(effect)
+        self.should_draw = True
+
+    def remove_effect(self, effect):
+        self.effects.remove(effect)
+        self.should_draw = True
 
     def draw(self, con):
+        if not self.should_draw:
+            return
+        self.should_draw = False
         if len(self.effects) > 0 and self.effects[-1].char:
             drawable = self.effects[-1]
         elif self.entity:
@@ -180,6 +200,12 @@ class Tile(object):
 
     def hover(self, color=libtcod.blue):
         self.bg_color = color
+        self.should_draw = True
+
+    def set_entity(self, entity):
+        self.entity = entity
+        self.should_draw = True
 
     def unhover(self):
         self.bg_color = self.bg_original_color
+        self.should_draw = True
