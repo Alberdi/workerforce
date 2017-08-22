@@ -79,6 +79,9 @@ class Entity(object):
         return tiles
 
     def shoot(self, x, y):
+        entity = self.bg.tiles[(x, y)].entity
+        if entity:
+            self.bg.remove_worker(entity)
         self.did_act = True
 
     def tiles_for_path(self, path):

@@ -21,6 +21,10 @@ class Battleground(object):
         self.workers.append(worker)
         self.tiles[(worker.x, worker.y)].entity = worker
 
+    def remove_worker(self,worker):
+        self.workers.remove(worker)
+        self.tiles[(worker.x, worker.y)].entity = None
+
     def default_tiles(self):
         for x in range(self.width):
             for y in range(self.height):
