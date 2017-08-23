@@ -7,6 +7,7 @@ class Battleground(object):
     def __init__(self, width, height):
         self.height = height
         self.width = width
+        self.enemies = []
         self.workers = []
         self.tiles = {}
         self.default_tiles()
@@ -17,13 +18,13 @@ class Battleground(object):
     def add_effect(self, effect):
         self.tiles[(effect.x, effect.y)].effects.append(effect)
 
+    def add_enemy(self, enemy):
+        self.enemies.append(enemy)
+        self.tiles[(enemy.x, enemy.y)].entity = enemy
+
     def add_worker(self, worker):
         self.workers.append(worker)
         self.tiles[(worker.x, worker.y)].entity = worker
-
-    def remove_worker(self,worker):
-        self.workers.remove(worker)
-        self.tiles[(worker.x, worker.y)].entity = None
 
     def default_tiles(self):
         for x in range(self.width):
@@ -62,34 +63,39 @@ class Battleground(object):
     def is_inside(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
 
-    def move(self, x, y):
-        if (x, y) == (self.workers[0].x, self.workers[0].y):
-            self.workers[0].move(x, y)
+    def move(self, entity, path):
+        if len(path) == 0:
+            entity.move(entity.x, entity.y)
             return
-        t = self.tiles.get((x, y))
-        if t in self.actionable_tiles:
-            def move_animations():
-                if len(self.mouse_hovered) == 0:
-                    return False
-                next_tile = self.mouse_hovered.pop(0)
-                self.workers[0].move(next_tile.x, next_tile.y)
-                libtcod.sys_sleep_milli(200)
-                return True
-            self.pending_animations = move_animations
+        def move_animations():
+            if len(self.mouse_hovered) == 0:
+                return False
+            next_tile = self.mouse_hovered.pop(0)
+            self.workers[0].move(next_tile.x, next_tile.y)
+            libtcod.sys_sleep_milli(200)
+            return True
+        self.pending_animations = move_animations
 
     def process_action(self, x, y, key, mouse):
         if mouse.lbutton_pressed:
             self.select_worker(x, y)
         elif mouse.rbutton_pressed:
-            if not self.workers[0].did_move:
-                self.move(x, y)
-            else:
-                self.shoot(x, y)
+            if self.tiles.get((x, y)) in self.actionable_tiles:
+                if self.workers[0].did_move:
+                    self.shoot(self.workers[0], self.mouse_hovered)
+                else:
+                    self.move(self.workers[0], self.mouse_hovered)
         elif key.vk == libtcod.KEY_TAB and key.pressed:
             self.select_active_worker()
         elif key.vk == libtcod.KEY_SHIFT and key.pressed:
-            # Select previous worker
             self.select_active_worker(True)
+
+    def remove_entity(self, entity):
+        if entity in self.enemies:
+            self.enemies.remove(entity)
+        if entity in self.workers:
+            self.workers.remove(entity)
+        self.tiles[(entity.x, entity.y)].entity = None
 
     def select_active_worker(self, previous=False):
         for i in range(len(self.workers)):
@@ -113,23 +119,21 @@ class Battleground(object):
                     return
                 self.workers.append(self.workers.pop(0))
 
-    def shoot(self, x, y):
-        t = self.tiles.get((x, y))
-        if t in self.actionable_tiles:
-            effect = Effect(self, self.workers[0].x, self.workers[0].y, '*')
-            self.add_effect(effect)
+    def shoot(self, entity, path):
+        effect = Effect(self, entity.x, entity.y, '*')
+        self.add_effect(effect)
 
-            def shoot_animations():
-                if len(self.mouse_hovered) == 0:
-                    effect.remove()
-                    self.workers[0].shoot(x, y)
-                    self.select_active_worker_or_end_turn()
-                    return False
-                next_tile = self.mouse_hovered.pop(0)
-                effect.move(next_tile.x, next_tile.y)
-                libtcod.sys_sleep_milli(50)
-                return True
-            self.pending_animations = shoot_animations
+        def shoot_animations():
+            if len(path) == 0:
+                effect.remove()
+                self.select_active_worker_or_end_turn()
+                return False
+            next_tile = path.pop(0)
+            effect.move(next_tile.x, next_tile.y)
+            entity.shoot(next_tile.x, next_tile.y)
+            libtcod.sys_sleep_milli(50)
+            return True
+        self.pending_animations = shoot_animations
 
     def show_current_options(self):
         w = self.workers[0]
