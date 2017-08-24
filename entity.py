@@ -95,9 +95,9 @@ class Entity(object):
 class Effect(Entity):
 
     def move(self, x, y):
-        self.bg.tiles[(self.x, self.y)].effects.remove(self)
+        self.bg.tiles[(self.x, self.y)].remove_effect(self)
         (self.x, self.y) = (x, y)
-        self.bg.tiles[(x, y)].effects.append(self)
+        self.bg.tiles[(x, y)].append_effect(self)
 
     def remove(self):
-        self.bg.tiles[(self.x, self.y)].effects.remove(self)
+        self.bg.tiles[(self.x, self.y)].remove_effect(self)

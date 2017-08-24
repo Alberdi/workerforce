@@ -1,5 +1,6 @@
 from entity import Effect
 import libtcodpy as libtcod
+import random
 
 
 class Battleground(object):
@@ -14,9 +15,10 @@ class Battleground(object):
         self.actionable_tiles = set()
         self.mouse_hovered = []
         self.pending_animations = None
+        self.ai_turn = False
 
     def add_effect(self, effect):
-        self.tiles[(effect.x, effect.y)].effects.append(effect)
+        self.tiles[(effect.x, effect.y)].append_effect(effect)
 
     def add_enemy(self, enemy):
         self.enemies.append(enemy)
@@ -42,6 +44,7 @@ class Battleground(object):
 
     def end_turn(self):
         [w.end_turn() for w in self.workers]
+        [e.end_turn() for e in self.enemies]
         self.select_active_worker()
 
     def hover_mouse(self, x, y):
@@ -67,11 +70,12 @@ class Battleground(object):
         if len(path) == 0:
             entity.move(entity.x, entity.y)
             return
+
         def move_animations():
-            if len(self.mouse_hovered) == 0:
+            if len(path) == 0:
                 return False
-            next_tile = self.mouse_hovered.pop(0)
-            self.workers[0].move(next_tile.x, next_tile.y)
+            next_tile = path.pop(0)
+            entity.move(next_tile.x, next_tile.y)
             libtcod.sys_sleep_milli(200)
             return True
         self.pending_animations = move_animations
@@ -89,6 +93,18 @@ class Battleground(object):
             self.select_active_worker()
         elif key.vk == libtcod.KEY_SHIFT and key.pressed:
             self.select_active_worker(True)
+
+    def process_ai_turn(self):
+        for e in self.enemies:
+            if not e.did_move:
+                target = random.choice(tuple(e.reachable_movement_tiles()))
+                self.move(e, e.path_movement(target.x, target.y))
+                return
+            elif not e.did_act:
+                target = random.choice(tuple(e.reachable_shoot_tiles()))
+                self.shoot(e, e.path_shoot(target.x, target.y))
+                return
+        self.ai_turn = False
 
     def remove_entity(self, entity):
         if entity in self.enemies:
@@ -109,6 +125,7 @@ class Battleground(object):
 
     def select_active_worker_or_end_turn(self):
         if not self.select_active_worker():
+            self.ai_turn = True
             self.end_turn()
 
     def select_worker(self, x, y):
@@ -120,13 +137,14 @@ class Battleground(object):
                 self.workers.append(self.workers.pop(0))
 
     def shoot(self, entity, path):
-        effect = Effect(self, entity.x, entity.y, '*')
+        effect = Effect(self, path[0].x, path[0].y, '*')
         self.add_effect(effect)
 
         def shoot_animations():
             if len(path) == 0:
                 effect.remove()
-                self.select_active_worker_or_end_turn()
+                if not self.ai_turn:
+                    self.select_active_worker_or_end_turn()
                 return False
             next_tile = path.pop(0)
             effect.move(next_tile.x, next_tile.y)
@@ -149,9 +167,12 @@ class Battleground(object):
         if self.pending_animations and self.pending_animations():
             return
         self.pending_animations = None
-        self.process_action(x, y, key, mouse)
-        if len(self.workers) > 0:
-            self.show_current_options()
+        if self.ai_turn:
+            self.process_ai_turn()
+        else:
+            self.process_action(x, y, key, mouse)
+            if len(self.workers) > 0:
+                self.show_current_options()
         self.hover_mouse(x, y)
 
     def unhover_all(self):
@@ -192,6 +213,8 @@ class Tile(object):
 
     def draw(self, con):
         if not self.should_draw:
+            if len(self.effects) > 0:
+                print(self.effects, self.x, self.y)
             return
         self.should_draw = False
         if len(self.effects) > 0 and self.effects[-1].char:
