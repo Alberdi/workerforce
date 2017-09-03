@@ -4,7 +4,7 @@ import libtcodpy as libtcod
 
 class Entity(object):
 
-    def __init__(self, battleground, x, y, char, color=libtcod.white):
+    def __init__(self, battleground, char, x=0, y=0, color=libtcod.white):
         self.bg = battleground
         self.char = char
         self.color = color

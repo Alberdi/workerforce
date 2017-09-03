@@ -1,6 +1,5 @@
 from entity import Effect
 import libtcodpy as libtcod
-import random
 
 
 class Battleground(object):
@@ -11,10 +10,10 @@ class Battleground(object):
         self.enemies = []
         self.workers = []
         self.tiles = {}
-        self.default_tiles()
         self.actionable_tiles = set()
         self.mouse_hovered = []
         self.pending_animations = None
+        self.scenario = None
         self.ai_turn = False
 
     def add_effect(self, effect):
@@ -27,16 +26,6 @@ class Battleground(object):
     def add_worker(self, worker):
         self.workers.append(worker)
         self.tiles[(worker.x, worker.y)].entity = worker
-
-    def default_tiles(self):
-        for x in range(self.width):
-            for y in range(self.height):
-                if x in [0, self.width - 1] or y in [0, self.height - 1]:
-                    # Walls
-                    self.tiles[(x, y)] = Tile(x, y, "#", False)
-                else:
-                    # Floor
-                    self.tiles[(x, y)] = Tile(x, y)
 
     def draw(self, con):
         for pos in self.tiles:
@@ -94,18 +83,6 @@ class Battleground(object):
         elif key.vk == libtcod.KEY_SHIFT and key.pressed:
             self.select_active_worker(True)
 
-    def process_ai_turn(self):
-        for e in self.enemies:
-            if not e.did_move:
-                target = random.choice(tuple(e.reachable_movement_tiles()))
-                self.move(e, e.path_movement(target.x, target.y))
-                return
-            elif not e.did_act:
-                target = random.choice(tuple(e.reachable_shoot_tiles()))
-                self.shoot(e, e.path_shoot(target.x, target.y))
-                return
-        self.ai_turn = False
-
     def remove_entity(self, entity):
         if entity in self.enemies:
             self.enemies.remove(entity)
@@ -137,7 +114,7 @@ class Battleground(object):
                 self.workers.append(self.workers.pop(0))
 
     def shoot(self, entity, path):
-        effect = Effect(self, path[0].x, path[0].y, '*')
+        effect = Effect(self, '*', path[0].x, path[0].y)
         self.add_effect(effect)
 
         def shoot_animations():
@@ -168,7 +145,7 @@ class Battleground(object):
             return
         self.pending_animations = None
         if self.ai_turn:
-            self.process_ai_turn()
+            self.ai_turn = self.scenario.process_ai_turn()
         else:
             self.process_action(x, y, key, mouse)
             if len(self.workers) > 0:
@@ -178,65 +155,3 @@ class Battleground(object):
     def unhover_all(self):
         [t.unhover() for t in self.actionable_tiles]
         [t.unhover() for t in self.mouse_hovered]
-
-
-class Tile(object):
-
-    def __init__(self, x, y, char='.', passable=True):
-        self.passable = passable
-        self.char = char
-        self.color = libtcod.Color(50, 50, 150)
-        self.bg_color = libtcod.black
-        self.bg_original_color = self.bg_color
-        self._entity = None
-        self.effects = []
-        self.x = x
-        self.y = y
-        self.should_draw = True
-
-    @property
-    def entity(self):
-        return self._entity
-
-    @entity.setter
-    def entity(self, entity):
-        self._entity = entity
-        self.should_draw = True
-
-    def append_effect(self, effect):
-        self.effects.append(effect)
-        self.should_draw = True
-
-    def remove_effect(self, effect):
-        self.effects.remove(effect)
-        self.should_draw = True
-
-    def draw(self, con):
-        if not self.should_draw:
-            if len(self.effects) > 0:
-                print(self.effects, self.x, self.y)
-            return
-        self.should_draw = False
-        if len(self.effects) > 0 and self.effects[-1].char:
-            drawable = self.effects[-1]
-        elif self.entity:
-            drawable = self.entity
-        else:
-            drawable = self
-        libtcod.console_put_char_ex(con, self.x, self.y, drawable.char,
-                                    drawable.color, self.bg_color)
-
-    def is_passable(self):
-        return self.passable and self.entity is None
-
-    def hover(self, color=libtcod.blue):
-        self.bg_color = color
-        self.should_draw = True
-
-    def set_entity(self, entity):
-        self.entity = entity
-        self.should_draw = True
-
-    def unhover(self):
-        self.bg_color = self.bg_original_color
-        self.should_draw = True

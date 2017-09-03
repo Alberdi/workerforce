@@ -1,5 +1,6 @@
 from battleground import Battleground
 from entity import Entity
+from scenario import Scenario
 import libtcodpy as libtcod
 import textwrap
 
@@ -120,13 +121,7 @@ class Window(object):
 if __name__ == "__main__":
     libtcod.sys_set_fps(30)
     bg = Battleground(BG_WIDTH, BG_HEIGHT)
-    worker = Entity(bg, 30, 15, '@')
-    bg.add_worker(worker)
-    enemy = Entity(bg, 50, 20, 'E')
-    bg.add_enemy(enemy)
-    enemy = Entity(bg, 50, 30, 'E')
-    bg.add_enemy(enemy)
-    enemy = Entity(bg, 50, 35, 'E')
-    bg.add_enemy(enemy)
+    workers = [Entity(bg, '@'), Entity(bg, '@'), Entity(bg, '@')]
+    scenario = Scenario(bg, workers)
     window = Window(bg)
     window.loop()
