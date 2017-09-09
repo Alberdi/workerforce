@@ -13,6 +13,7 @@ class Battleground(object):
         self.actionable_tiles = set()
         self.mouse_hovered = []
         self.pending_animations = None
+        self.animations_wait = 0
         self.scenario = None
         self.ai_turn = False
 
@@ -43,7 +44,7 @@ class Battleground(object):
             return
         if hovered_tile in self.actionable_tiles:
             if not self.workers[0].did_move:
-                self.mouse_hovered = self.workers[0].path_movement(x, y)
+                self.mouse_hovered = self.workers[0].movement_path_to(x, y)
             else:
                 self.mouse_hovered = self.workers[0].path_shoot(x, y)
             color = libtcod.green
@@ -65,7 +66,7 @@ class Battleground(object):
                 return False
             next_tile = path.pop(0)
             entity.move(next_tile.x, next_tile.y)
-            libtcod.sys_sleep_milli(200)
+            self.animations_wait = 0.2
             return True
         self.pending_animations = move_animations
 
@@ -126,7 +127,7 @@ class Battleground(object):
             next_tile = path.pop(0)
             effect.move(next_tile.x, next_tile.y)
             entity.shoot(next_tile.x, next_tile.y)
-            libtcod.sys_sleep_milli(50)
+            self.animations_wait = 0.05
             return True
         self.pending_animations = shoot_animations
 
@@ -141,9 +142,13 @@ class Battleground(object):
 
     def update(self, x, y, key, mouse):
         self.unhover_all()
-        if self.pending_animations and self.pending_animations():
+        if self.pending_animations:
+            self.animations_wait =\
+                self.animations_wait - libtcod.sys_get_last_frame_length()
+            if self.animations_wait <= 0:
+                if not self.pending_animations():
+                    self.pending_animations = None
             return
-        self.pending_animations = None
         if self.ai_turn:
             self.ai_turn = self.scenario.process_ai_turn()
         else:

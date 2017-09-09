@@ -14,7 +14,7 @@ class Scenario(object):
         for e in self.bg.enemies:
             if not e.did_move:
                 target = random.choice(tuple(e.reachable_movement_tiles()))
-                self.bg.move(e, e.path_movement(target.x, target.y))
+                self.bg.move(e, e.movement_path_to(target.x, target.y))
                 return True
             elif not e.did_act:
                 target = random.choice(tuple(e.reachable_shoot_tiles()))

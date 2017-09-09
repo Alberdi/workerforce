@@ -25,16 +25,24 @@ class Entity(object):
         self.bg.tiles[(x, y)].entity = self
         self.did_move = True
 
-    def path_movement(self, x, y):
+    def new_movement_path(self):
+        def path_cost(from_x, from_y, to_x, to_y, userdata):
+            tile = self.bg.tiles.get((to_x, to_y))
+            return 1.0 if tile and tile.is_passable() else 0.0
+        return libtcod.path_new_using_function(self.bg.width, self.bg.height,
+                                               path_cost, 0, 0.0)
+
+    def movement_path_to(self, x, y):
         def path_cost(from_x, from_y, to_x, to_y, userdata):
             tile = self.bg.tiles.get((to_x, to_y))
             return 1.0 if tile and tile.is_passable() else 0.0
         path = libtcod.path_new_using_function(self.bg.width, self.bg.height,
                                                path_cost, 0, 0.0)
         libtcod.path_compute(path, self.x, self.y, x, y)
-        if libtcod.path_size(path) > self.speed:
-            return []
-        return self.tiles_for_path(path)
+        tiles = [] if libtcod.path_size(path) > self.speed\
+            else self.tiles_for_path(path)
+        libtcod.path_delete(path)
+        return tiles
 
     def path_shoot(self, x, y):
         def path_cost(from_x, from_y, to_x, to_y, userdata):
