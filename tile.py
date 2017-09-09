@@ -34,8 +34,6 @@ class Tile(object):
 
     def draw(self, con):
         if not self.should_draw:
-            if len(self.effects) > 0:
-                print(self.effects, self.x, self.y)
             return
         self.should_draw = False
         if len(self.effects) > 0 and self.effects[-1].char:

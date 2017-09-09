@@ -12,7 +12,7 @@ class Battleground(object):
         self.tiles = {}
         self.actionable_tiles = set()
         self.mouse_hovered = []
-        self.pending_animations = None
+        self.animations = None
         self.animations_wait = 0
         self.scenario = None
         self.ai_turn = False
@@ -42,7 +42,7 @@ class Battleground(object):
         if not hovered_tile:
             self.mouse_hovered = []
             return
-        if hovered_tile in self.actionable_tiles:
+        if not self.animations and hovered_tile in self.actionable_tiles:
             if not self.workers[0].did_move:
                 self.mouse_hovered = self.workers[0].movement_path_to(x, y)
             else:
@@ -68,7 +68,7 @@ class Battleground(object):
             entity.move(next_tile.x, next_tile.y)
             self.animations_wait = 0.2
             return True
-        self.pending_animations = move_animations
+        self.animations = move_animations
 
     def process_action(self, x, y, key, mouse):
         if mouse.lbutton_pressed:
@@ -129,7 +129,7 @@ class Battleground(object):
             entity.shoot(next_tile.x, next_tile.y)
             self.animations_wait = 0.05
             return True
-        self.pending_animations = shoot_animations
+        self.animations = shoot_animations
 
     def show_current_options(self):
         w = self.workers[0]
@@ -139,23 +139,25 @@ class Battleground(object):
         elif not w.did_act:
             self.actionable_tiles = w.reachable_shoot_tiles()
             [t.hover(libtcod.orange) for t in self.actionable_tiles]
+        else:
+            self.actionable_tiles = set()
 
     def update(self, x, y, key, mouse):
         self.unhover_all()
-        if self.pending_animations:
+        if self.animations:
             self.animations_wait =\
                 self.animations_wait - libtcod.sys_get_last_frame_length()
             if self.animations_wait <= 0:
-                if not self.pending_animations():
-                    self.pending_animations = None
+                if not self.animations():
+                    self.animations = None
             return
         if self.ai_turn:
             self.ai_turn = self.scenario.process_ai_turn()
         else:
-            self.process_action(x, y, key, mouse)
             if len(self.workers) > 0:
                 self.show_current_options()
-        self.hover_mouse(x, y)
+            self.hover_mouse(x, y)
+            self.process_action(x, y, key, mouse)
 
     def unhover_all(self):
         [t.unhover() for t in self.actionable_tiles]
